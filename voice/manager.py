@@ -1,75 +1,20 @@
-import threading
-import time
+"""Adaptador temporal para ``VoiceManager``; usar ``VoiceService`` nuevo."""
 
-from voice.listener import escuchar
+from collections.abc import Callable
+
+from voice.service import VoiceService
 
 
 class VoiceManager:
-
-    def __init__(self, callback):
-
-        self.callback = callback
-
-        self.activo = True
-
-        self.escuchando = False
-
-    # ======================================
-
-    def iniciar(self):
-
-        hilo = threading.Thread(
-            target=self.bucle,
-            daemon=True
+    def __init__(self, callback: Callable[[str], None]) -> None:
+        self._service = VoiceService(
+            on_activated=lambda: None,
+            on_command=callback,
+            on_command_timeout=lambda: None,
         )
 
-        hilo.start()
+    def iniciar(self) -> None:
+        self._service.start()
 
-    # ======================================
-
-    def detener(self):
-
-        self.activo = False
-
-    # ======================================
-
-    def bucle(self):
-
-        while self.activo:
-
-            # Evita lanzar varias escuchas a la vez
-            if self.escuchando:
-
-                time.sleep(0.2)
-
-                continue
-
-            self.escuchando = True
-
-            try:
-
-                texto = escuchar()
-
-            except Exception as e:
-
-                print("Error escuchando:", e)
-
-                texto = ""
-
-            self.escuchando = False
-
-            if texto == "":
-
-                continue
-
-            texto = texto.lower()
-
-            print("Escuchado:", texto)
-
-            # -------------------------
-            # Palabra de activación
-            # -------------------------
-
-            if "nyx" in texto:
-
-                self.callback(texto)
+    def detener(self) -> None:
+        self._service.stop()

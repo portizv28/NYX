@@ -1,145 +1,105 @@
-import tkinter as tk
+"""Esfera flotante de NYX."""
+
 import math
+import tkinter as tk
+from collections.abc import Callable
+
+from core.state import AssistantState
+from gui.state_style import STATE_COLORS
 
 
 class NyxOrb:
-
-    def __init__(self):
-
+    def __init__(self) -> None:
         self.root = tk.Toplevel()
-
         self.root.overrideredirect(True)
         self.root.attributes("-topmost", True)
-
         self.root.config(bg="magenta")
         self.root.wm_attributes("-transparentcolor", "magenta")
-
-        # POSICIÓN VISIBLE (arriba izquierda)
         self.root.geometry("160x160+100+100")
 
         self.canvas = tk.Canvas(
-            self.root,
-            width=160,
-            height=160,
-            bg="magenta",
-            highlightthickness=0
+            self.root, width=160, height=160, bg="magenta", highlightthickness=0
         )
-
         self.canvas.pack()
-
-        # Halo
         self.glow = self.canvas.create_oval(
-            30,
-            30,
-            130,
-            130,
-            fill="",
-            outline="#00BFFF",
-            width=10
+            30, 30, 130, 130, fill="", outline="#00BFFF", width=10
         )
+        self.circle = self.canvas.create_oval(50, 50, 110, 110, fill="#00BFFF", outline="")
+        self._time = 0.0
+        self._drag_x = 0
+        self._drag_y = 0
+        self._callback: Callable[[], None] | None = None
 
-        # Núcleo
-        self.circle = self.canvas.create_oval(
-            50,
-            50,
-            110,
-            110,
-            fill="#00BFFF",
-            outline=""
-        )
+        self.canvas.bind("<Button-1>", self._start_drag)
+        self.canvas.bind("<Double-Button-1>", self._open)
+        self.canvas.bind("<B1-Motion>", self._drag)
+        self._animate()
 
-        self.t = 0
+    def _animate(self) -> None:
+        self._time += 0.08
+        radius = 30 * (1 + math.sin(self._time) * 0.05)
+        self.canvas.coords(self.circle, 80 - radius, 80 - radius, 80 + radius, 80 + radius)
+        halo = 50 + math.sin(self._time) * 3
+        self.canvas.coords(self.glow, 80 - halo, 80 - halo, 80 + halo, 80 + halo)
+        self.root.after(20, self._animate)
 
-        self.dx = 0
-        self.dy = 0
+    def _start_drag(self, event) -> None:
+        self._drag_x, self._drag_y = event.x, event.y
 
-        self.callback = None
+    def _open(self, _event) -> None:
+        if self._callback:
+            self._callback()
 
-        self.canvas.bind("<Button-1>", self.click)
-        self.canvas.bind("<Double-Button-1>", self.abrir)
-        self.canvas.bind("<B1-Motion>", self.drag)
-
-        self.animate()
-
-    def animate(self):
-
-        self.t += 0.08
-
-        escala = 1 + math.sin(self.t) * 0.05
-
-        radio = 30 * escala
-
-        self.canvas.coords(
-            self.circle,
-            80-radio,
-            80-radio,
-            80+radio,
-            80+radio
-        )
-
-        halo = 50 + math.sin(self.t) * 3
-
-        self.canvas.coords(
-            self.glow,
-            80-halo,
-            80-halo,
-            80+halo,
-            80+halo
-        )
-
-        self.root.after(20, self.animate)
-
-    def click(self, event):
-
-        self.dx = event.x
-        self.dy = event.y
-
-    def abrir(self, event):
-
-        if self.callback:
-            self.callback()
-
-    def drag(self, event):
-
-        x = self.root.winfo_x() + event.x - self.dx
-        y = self.root.winfo_y() + event.y - self.dy
-
+    def _drag(self, event) -> None:
+        x = self.root.winfo_x() + event.x - self._drag_x
+        y = self.root.winfo_y() + event.y - self._drag_y
         self.root.geometry(f"+{x}+{y}")
 
-    def set_callback(self, callback):
+    def set_callback(self, callback: Callable[[], None]) -> None:
+        self._callback = callback
 
-        self.callback = callback
+    def render_state(self, state: AssistantState) -> None:
+        color = STATE_COLORS[state]
+        self.canvas.itemconfig(self.circle, fill=color)
+        self.canvas.itemconfig(
+            self.glow, outline="#333333" if state is AssistantState.SLEEPING else color
+        )
 
-    def dormir(self):
+    def set_position(self, x: int, y: int) -> None:
+        """Posiciona la esfera; futuro movimiento inteligente usará esta API."""
+        self.root.geometry(f"+{x}+{y}")
 
-        self.canvas.itemconfig(self.circle, fill="black")
-        self.canvas.itemconfig(self.glow, outline="#333333")
+    def position(self) -> tuple[int, int]:
+        return self.root.winfo_x(), self.root.winfo_y()
 
-    def escuchar(self):
+    def move_to(self, x: int, y: int) -> None:
+        """Alias semántico para controladores de movimiento futuros."""
+        self.set_position(x, y)
 
-        self.canvas.itemconfig(self.circle, fill="orange")
-        self.canvas.itemconfig(self.glow, outline="orange")
+    # Compatibilidad con las llamadas de la versión inicial.
+    def dormir(self) -> None:
+        self.render_state(AssistantState.SLEEPING)
 
-    def pensar(self):
+    def escuchar(self) -> None:
+        self.render_state(AssistantState.LISTENING)
 
-        self.canvas.itemconfig(self.circle, fill="yellow")
-        self.canvas.itemconfig(self.glow, outline="yellow")
+    def pensar(self) -> None:
+        self.render_state(AssistantState.THINKING)
 
-    def hablar(self):
+    def hablar(self) -> None:
+        self.render_state(AssistantState.SPEAKING)
 
-        self.canvas.itemconfig(self.circle, fill="lime")
-        self.canvas.itemconfig(self.glow, outline="lime")
+    def normal(self) -> None:
+        self.render_state(AssistantState.IDLE)
 
-    def normal(self):
-
-        self.canvas.itemconfig(self.circle, fill="#00BFFF")
-        self.canvas.itemconfig(self.glow, outline="#00BFFF")
-
-    def ocultar(self):
-
+    def ocultar(self) -> None:
         self.root.withdraw()
 
-    def mostrar(self):
+    def hide(self) -> None:
+        self.ocultar()
 
+    def mostrar(self) -> None:
         self.root.deiconify()
-        
+
+    def show(self) -> None:
+        self.mostrar()

@@ -6,7 +6,10 @@ def abrir_programa(nombre):
 
     programas = {
         "spotify": "start spotify",
+        "steam": "start steam",
         "chrome": "start chrome",
+        "word": "start winword",
+        "excel": "start excel",
         "calculadora": "start calc",
         "explorador": "start explorer",
         "bloc de notas": "start notepad",

@@ -3,19 +3,24 @@ import requests
 
 class LocalAI:
 
-    def __init__(self):
+    name = "local"
 
-        self.url = "http://localhost:11434/api/generate"
-        self.modelo = "llama3.2:3b"
+    def __init__(
+        self,
+        url="http://localhost:11434/api/generate",
+        model="llama3.2:3b",
+    ):
+        self.url = url
+        self.modelo = model
 
 
-    def preguntar(self, texto):
+    def ask(self, text):
 
         respuesta = requests.post(
             self.url,
             json={
                 "model": self.modelo,
-                "prompt": texto,
+                "prompt": text,
                 "stream": False,
                 "options": {
                     "num_predict": 200
@@ -24,6 +29,12 @@ class LocalAI:
             timeout=120
         )
 
+        respuesta.raise_for_status()
+
         datos = respuesta.json()
 
         return datos["response"]
+
+    def preguntar(self, texto):
+        """Alias de compatibilidad para la API inicial en español."""
+        return self.ask(texto)

@@ -1,0 +1,2 @@
+"""Capacidades ejecutables de NYX."""
+

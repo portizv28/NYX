@@ -1,38 +1,25 @@
-import json
-import os
+"""API anterior de memoria, conservada sobre la nueva implementación."""
+
+from memory.json_store import JsonMemoryStore
+from memory.service import MemoryService
 
 
 class MemoryManager:
-
-    def __init__(self):
-
+    def __init__(self) -> None:
         self.file = "memory/memory.json"
-
-        if not os.path.exists(self.file):
-
-            with open(self.file, "w") as f:
-                json.dump({}, f)
+        self._store = JsonMemoryStore(self.file)
+        self._service = MemoryService(self._store)
 
     def cargar(self):
-
-        with open(self.file, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return {entry.key: entry.value for entry in self._store.list_entries()}
 
     def guardar(self, datos):
-
-        with open(self.file, "w", encoding="utf-8") as f:
-            json.dump(datos, f, indent=4, ensure_ascii=False)
+        for clave, valor in datos.items():
+            self.recordar(clave, valor)
 
     def recordar(self, clave, valor):
-
-        datos = self.cargar()
-
-        datos[clave] = valor
-
-        self.guardar(datos)
+        self._service.remember(clave, valor)
 
     def obtener(self, clave):
-
-        datos = self.cargar()
-
-        return datos.get(clave, None)
+        entry = self._service.recall(clave)
+        return entry.value if entry else None

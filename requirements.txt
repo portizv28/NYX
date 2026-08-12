@@ -1,0 +1,18 @@
+# Dependencias de ejecución de la versión actual de NYX.
+# Tkinter forma parte de la instalación estándar de Python en Windows.
+openai
+requests
+python-dotenv
+sounddevice
+numpy
+openai-whisper
+scipy
+pyttsx3
+openpyxl
+python-pptx
+python-docx
+matplotlib
+pyautogui
+pystray
+faster-whisper
+pvporcupine

@@ -1,71 +1,25 @@
-import threading
-import time
+"""Adaptador temporal de la API ``WakeDetector`` anterior.
 
-from voice.listener import escuchar
+La detección real vive en :mod:`voice.service`; este archivo se conserva para
+no romper integraciones existentes y se retirará sólo tras una migración
+explícita de sus consumidores.
+"""
+
+from collections.abc import Callable
+
+from voice.service import VoiceService
 
 
 class WakeDetector:
+    def __init__(self, callback: Callable[[str], None]) -> None:
+        self._service = VoiceService(
+            on_activated=lambda: None,
+            on_command=callback,
+            on_command_timeout=lambda: None,
+        )
 
-    def __init__(self, callback):
+    def start(self) -> None:
+        self._service.start()
 
-        self.callback = callback
-
-        self.running = False
-
-    # ----------------------------------
-
-    def start(self):
-
-        if self.running:
-            return
-
-        self.running = True
-
-        threading.Thread(
-            target=self.loop,
-            daemon=True
-        ).start()
-
-    # ----------------------------------
-
-    def stop(self):
-
-        self.running = False
-
-    # ----------------------------------
-
-    def loop(self):
-
-        while self.running:
-
-            try:
-
-                texto = escuchar()
-
-            except Exception as e:
-
-                print("Wake Error:", e)
-
-                time.sleep(1)
-
-                continue
-
-            if texto == "":
-                continue
-
-            texto = texto.lower()
-
-            print("[Wake]", texto)
-
-            # -----------------------------
-            # Despertar a NYX
-            # -----------------------------
-
-            if "nyx" in texto:
-
-                texto = texto.replace(
-                    "nyx",
-                    ""
-                ).strip()
-
-                self.callback(texto)
+    def stop(self) -> None:
+        self._service.stop()

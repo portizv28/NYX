@@ -1,0 +1,2 @@
+"""Capacidades instalables de NYX."""
+

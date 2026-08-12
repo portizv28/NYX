@@ -1,27 +1,20 @@
-import time
-from voice.listener import escuchar
+"""Adaptador temporal para la API de palabra de activación original."""
+
+from collections.abc import Callable
+
+from voice.service import VoiceService
 
 
 class WakeWord:
+    def __init__(self, callback: Callable[[], None]) -> None:
+        self._service = VoiceService(
+            on_activated=callback,
+            on_command=lambda _text: None,
+            on_command_timeout=lambda: None,
+        )
 
-    def __init__(self, callback):
+    def iniciar(self) -> None:
+        self._service.start()
 
-        self.callback = callback
-
-        self.activo = True
-
-    def iniciar(self):
-
-        while self.activo:
-
-            texto = escuchar()
-
-            if texto == "":
-                continue
-
-            texto = texto.lower()
-
-            if "nyx" in texto:
-
-                self.callback()
-                
+    def detener(self) -> None:
+        self._service.stop()
