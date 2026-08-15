@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from voice.contracts import RecognitionResult, SpeechRecognizer
+from voice.diagnostics import VoiceDiagnostics
 from voice.factory import create_default_recognizer
 from voice.wake_detector import WakeWordDetector
 from voice.wake_engines import WakeEngine, create_default_wake_engine
@@ -20,6 +21,7 @@ class VoiceSessionConfig:
     conversation_idle_seconds: float = 6.0
     interruption_listen_timeout_seconds: float = 1.0
     idle_delay_seconds: float = 0.1
+    wake_cooldown_seconds: float = 2.0
 
 
 class VoiceService:
@@ -37,6 +39,7 @@ class VoiceService:
         wake_detector: WakeWordDetector | None = None,
         wake_engine: WakeEngine | None = None,
         config: VoiceSessionConfig | None = None,
+        diagnostics: VoiceDiagnostics | None = None,
     ) -> None:
         self.on_activated = on_activated
         self.on_command = on_command
@@ -50,6 +53,7 @@ class VoiceService:
         self.wake_detector = wake_detector or WakeWordDetector()
         self.wake_engine = wake_engine or create_default_wake_engine(self.listener, self.wake_detector)
         self.config = config or VoiceSessionConfig()
+        self.diagnostics = diagnostics or VoiceDiagnostics()
         self._running = threading.Event()
         self._enabled = threading.Event()
         self._enabled.set()
@@ -59,6 +63,7 @@ class VoiceService:
         self._interrupt_notified = threading.Event()
         self._thread: threading.Thread | None = None
         self._session_deadline = 0.0
+        self._last_wake_at = 0.0
 
     def start(self) -> None:
         if self._running.is_set():
@@ -107,13 +112,18 @@ class VoiceService:
         self.end_speaking()
 
     def _listen(self, timeout: float) -> str:
+        started = time.monotonic()
         self._cancel_listen.clear()
         listen_result = getattr(self.listener, "listen_result", None)
         if listen_result:
             result = listen_result(cancel_event=self._cancel_listen, initial_timeout_seconds=timeout)
-            return result.text if result.is_reliable else ""
+            text = result.text if result.is_reliable else ""
+            self.diagnostics.record("transcription", duration_seconds=round(time.monotonic() - started, 3), reliable=result.is_reliable, text_length=len(text))
+            return text
         result = self.listener.listen(cancel_event=self._cancel_listen, initial_timeout_seconds=timeout)
-        return result.text if isinstance(result, RecognitionResult) and result.is_reliable else str(result).strip()
+        text = result.text if isinstance(result, RecognitionResult) and result.is_reliable else str(result).strip()
+        self.diagnostics.record("transcription", duration_seconds=round(time.monotonic() - started, 3), reliable=bool(text), text_length=len(text))
+        return text
 
     def _loop(self) -> None:
         while self._running.is_set():
@@ -134,11 +144,18 @@ class VoiceService:
     def _wait_for_wake_word(self) -> None:
         event = self.wake_engine.wait(self._cancel_listen)
         if self._running.is_set() and event is not None:
+            elapsed = time.monotonic() - self._last_wake_at
+            if elapsed < self.config.wake_cooldown_seconds:
+                self.diagnostics.record("wake_rejected", reason="cooldown", elapsed_seconds=round(elapsed, 3), engine=event.engine)
+                return
+            self._last_wake_at = time.monotonic()
+            self.diagnostics.record("wake_accepted", engine=event.engine, confidence=event.confidence, command_included=bool(event.command))
             self._start_session(event.command)
 
     def _start_session(self, command: str) -> None:
         self._session_active.set()
         self._session_deadline = time.monotonic() + self.config.conversation_idle_seconds
+        self.diagnostics.record("session_started", command_included=bool(command))
         self.on_activated()
         if command:
             self.on_command(command)
@@ -157,6 +174,7 @@ class VoiceService:
         if not command:
             return
         self._session_deadline = time.monotonic() + self.config.conversation_idle_seconds
+        self.diagnostics.record("command_accepted", text_length=len(command))
         self.on_command(command)
 
     def _monitor_interruption(self) -> None:
@@ -167,4 +185,5 @@ class VoiceService:
 
     def _end_session(self) -> None:
         self._session_active.clear()
+        self.diagnostics.record("session_ended", reason="idle_timeout")
         self.on_command_timeout()

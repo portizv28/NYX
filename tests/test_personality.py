@@ -43,4 +43,4 @@ class PersonalityTests(unittest.TestCase):
     def test_direct_response_gets_tone_without_changing_processor(self):
         response = PersonalityAwareProcessor(FakeProcessor(), self.engine).procesar("abre Spotify")
 
-        self.assertEqual("Ahora mismo, señorito Pablo.", response)
+        self.assertEqual("Claro, Pablo.", response)

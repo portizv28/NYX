@@ -37,7 +37,7 @@ class PersonalityEngine:
         if not response or "pablo" in response[:80].casefold():
             return response
         if request.casefold().strip().startswith("abre "):
-            return "Ahora mismo, señorito Pablo."
+            return "Claro, Pablo."
         if self.mode_for(request) is InteractionMode.PROFESSIONAL:
             return f"Por supuesto, Pablo. {response}"
         return f"Claro, Pablo. {response}"

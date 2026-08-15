@@ -10,16 +10,17 @@ from capabilities.defaults import create_default_action_registry, create_default
 from core.store import StateStore
 from memory.json_store import JsonMemoryStore
 from memory.service import MemoryService
+from news.service import NewsService
 from personality.adapters import PersonalityAwareProcessor, PersonalityAwareProvider
 from personality.engine import PersonalityEngine
 from personality.profiles import NYX_PROFILE
 from pathlib import Path
 
 
-def create_desktop_brain(state_store: StateStore | None = None) -> PersonalityAwareProcessor:
+def create_desktop_brain(state_store: StateStore | None = None, news_service: NewsService | None = None) -> PersonalityAwareProcessor:
     personality = PersonalityEngine(NYX_PROFILE)
     router = create_default_router()
-    capabilities = create_default_capability_registry()
+    capabilities = create_default_capability_registry(news_service)
     if state_store:
         state_store.update(
             memory_available=True,
@@ -33,7 +34,7 @@ def create_desktop_brain(state_store: StateStore | None = None) -> PersonalityAw
 
     brain = NyxBrain(
         router=PersonalityAwareProvider(router, personality),
-        actions=create_default_action_registry(),
+        actions=create_default_action_registry(news_service),
         memory=MemoryService(JsonMemoryStore(Path(__file__).resolve().parents[1] / "memory" / "memory.json")),
         on_action=(lambda action: state_store.update(last_action=action)) if state_store else None,
     )

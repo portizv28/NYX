@@ -1,0 +1,8 @@
+# Voz. faster-whisper es el STT recomendado; Porcupine es opcional pero recomendado
+# para una palabra de activación acústica con un modelo .ppn personalizado.
+sounddevice
+numpy
+scipy
+pyttsx3
+faster-whisper
+pvporcupine

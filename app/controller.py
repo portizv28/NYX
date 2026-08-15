@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import threading
+import webbrowser
 
 from app.composition import create_desktop_brain
+from config.settings import get_settings
 from core.state import AssistantState, MicrophoneState
 from core.store import AssistantSnapshot, StateStore
 from gui.orb import NyxOrb
 from gui.window import NyxWindow
-from voice.service import VoiceService
+from news.service import NewsService
+from news.capability import NewsCapability
+from voice.service import VoiceService, VoiceSessionConfig
 from voice.speaker import SpeechService
 
 
@@ -29,7 +33,9 @@ class NYX:
         self.window.root.withdraw()
         self.orb = NyxOrb()
         self.state_store = StateStore()
-        self.brain = create_desktop_brain(self.state_store)
+        self.news = NewsService()
+        self.news_capability = NewsCapability(service=self.news)
+        self.brain = create_desktop_brain(self.state_store, self.news)
         self.speech = SpeechService()
         self._unsubscribe_state = self.state_store.subscribe(self._render_snapshot, emit_current=True)
 
@@ -40,10 +46,13 @@ class NYX:
             on_session_started=lambda: self._on_ui(self._acknowledge_session),
             on_interruption=lambda: self._on_ui(self._interrupt_speech),
             on_listening_enabled=self._on_listening_changed,
+            config=VoiceSessionConfig(wake_cooldown_seconds=get_settings().wake_cooldown_seconds),
         )
 
         self.window.set_on_submit(self.process_text)
         self.window.set_voice_callback(self._request_voice_listening)
+        self.window.set_news_callbacks(self.request_news_refresh, self.open_news_article)
+        self.window.set_audio_callbacks(self.request_toggle_listening, self.request_toggle_speech)
         self.orb.set_callback(self.open_window)
         self.window.root.protocol("WM_DELETE_WINDOW", self.close_window)
         self._set_state(AssistantState.SLEEPING)
@@ -124,7 +133,20 @@ class NYX:
 
     def _show_response(self, response: str) -> None:
         self.window.add_assistant_message(response)
+        if self.news.last_result():
+            self.window.render_news(self.news.last_result())
         self._begin_speaking(response)
+
+    def request_news_refresh(self) -> None:
+        threading.Thread(target=self._refresh_news_in_background, daemon=True, name="nyx-news-refresh").start()
+
+    def _refresh_news_in_background(self) -> None:
+        result = self.news_capability.refresh(force=True)
+        self._on_ui(lambda: self.window.render_news(result))
+
+    def open_news_article(self, url: str) -> None:
+        self.news.select_link(url)
+        webbrowser.open(url)
 
     def _begin_speaking(self, text: str) -> None:
         self._set_state(AssistantState.SPEAKING)
@@ -158,6 +180,9 @@ class NYX:
 
     def request_toggle_listening(self) -> None:
         self._on_ui(self.toggle_listening)
+
+    def request_toggle_speech(self) -> None:
+        self._on_ui(self.speech.toggle_muted)
 
     def request_shutdown(self) -> None:
         self._on_ui(self.shutdown)

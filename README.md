@@ -6,11 +6,9 @@ para convertir el prototipo inicial en una plataforma modular.
 
 ## Ejecutar
 
-1. Crea y activa un entorno virtual de Python.
-2. Instala las dependencias: `pip install -r requirements.txt`.
-3. Configura `OPENAI_API_KEY` sólo si vas a usar el proveedor externo en una
-   fase posterior. No incluyas `.env` en Git.
-4. Inicia NYX con `python main.py`.
+1. En Windows, ejecuta `./scripts/setup.ps1 -Profile Full -Dev`.
+2. Revisa el archivo `.env` creado desde `.env.example`; no lo incluyas en Git.
+3. Inicia NYX con `.venv\Scripts\python.exe main.py`.
 
 NYX usa Ollama local para la conversación actual. Debe estar disponible en
 `http://localhost:11434` y tener instalado `llama3.2:3b`.
@@ -38,3 +36,6 @@ La documentación de arquitectura está en
 [`docs/version-0.7.1-voice-stability.md`](docs/version-0.7.1-voice-stability.md),
 [`docs/voice-production-pipeline.md`](docs/voice-production-pipeline.md). El controlador
 vive en `app/controller.py`; los estados se comparten desde `core/state.py`.
+
+La guía de migración, voz, TTS y noticias está en
+[`docs/new-pc-preparation.md`](docs/new-pc-preparation.md).

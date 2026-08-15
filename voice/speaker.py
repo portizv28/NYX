@@ -1,4 +1,4 @@
-"""Síntesis de voz serializada para NYX."""
+"""Síntesis de voz serializada y desacoplada del proveedor concreto."""
 
 from __future__ import annotations
 
@@ -6,21 +6,22 @@ import queue
 import threading
 from collections.abc import Callable
 
-import pyttsx3
-
 from config.identity import NYX_IDENTITY
+from config.settings import get_settings
 from personality.models import VoiceStyle
 from personality.profiles import NYX_PROFILE
+from voice.tts import TTSProvider, create_tts_provider
 
 
 class SpeechService:
-    """Ejecuta una frase cada vez para evitar voces superpuestas."""
+    """Ejecuta una frase cada vez y permite cambiar de motor sin tocar NYX."""
 
-    def __init__(self, style: VoiceStyle = NYX_PROFILE.voice) -> None:
+    def __init__(self, style: VoiceStyle = NYX_PROFILE.voice, provider: TTSProvider | None = None) -> None:
+        settings = get_settings()
         self.style = style
+        self.provider = provider or create_tts_provider(settings.tts_engine, settings.tts_rate or style.rate, settings.tts_volume)
         self._queue: queue.Queue[tuple[str, Callable[[bool], None] | None]] = queue.Queue()
-        self._engine_lock = threading.Lock()
-        self._engine = None
+        self._muted = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True, name="nyx-speech")
         self._thread.start()
 
@@ -28,46 +29,37 @@ class SpeechService:
         self._queue.put((NYX_IDENTITY.for_speech(text), on_complete))
 
     def stop(self) -> None:
-        """Solicita detener de inmediato la frase que está sonando."""
-        with self._engine_lock:
-            if self._engine is not None:
-                self._engine.stop()
+        self.provider.stop()
+
+    @property
+    def muted(self) -> bool:
+        return self._muted.is_set()
+
+    def set_muted(self, muted: bool) -> None:
+        if muted:
+            self._muted.set()
+            self.stop()
+        else:
+            self._muted.clear()
+
+    def toggle_muted(self) -> bool:
+        self.set_muted(not self.muted)
+        return self.muted
 
     def _run(self) -> None:
-        engine = None
         while True:
             text, on_complete = self._queue.get()
             succeeded = False
             try:
-                if engine is None:
-                    engine = pyttsx3.init()
-                    engine.setProperty("rate", self.style.rate)
-                    engine.setProperty("volume", self.style.volume)
-                    self._select_spanish_voice(engine)
-                with self._engine_lock:
-                    self._engine = engine
-                engine.say(text)
-                engine.runAndWait()
+                if not self.muted:
+                    self.provider.speak(text)
                 succeeded = True
             except Exception as error:
                 print("Error de síntesis:", error)
-                engine = None
             finally:
-                with self._engine_lock:
-                    self._engine = None
-                try:
-                    if on_complete:
-                        on_complete(succeeded)
-                finally:
-                    self._queue.task_done()
-
-    @staticmethod
-    def _select_spanish_voice(engine) -> None:
-        for voice in engine.getProperty("voices"):
-            details = " ".join(str(value) for value in (getattr(voice, "id", ""), getattr(voice, "name", ""), getattr(voice, "languages", ""))).casefold()
-            if "spanish" in details or "español" in details or "es-" in details:
-                engine.setProperty("voice", voice.id)
-                return
+                if on_complete:
+                    on_complete(succeeded)
+                self._queue.task_done()
 
 
 _default_speaker = SpeechService()

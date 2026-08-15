@@ -1,0 +1,3 @@
+# Herramientas locales opcionales de verificación.
+pytest
+ruff

@@ -1,0 +1,12 @@
+{
+  "sources": [
+    {"id": "mit_technology_review", "name": "MIT Technology Review", "url": "https://www.technologyreview.com/feed/", "categories": ["technology"], "kind": "rss", "refresh_minutes": 60, "enabled": true},
+    {"id": "techcrunch", "name": "TechCrunch", "url": "https://techcrunch.com/feed/", "categories": ["technology", "business"], "kind": "rss", "refresh_minutes": 45, "enabled": true},
+    {"id": "nature", "name": "Nature", "url": "https://www.nature.com/nature.rss", "categories": ["science"], "kind": "rss", "refresh_minutes": 120, "enabled": true},
+    {"id": "economist", "name": "The Economist", "url": "https://www.economist.com/latest/rss.xml", "categories": ["economy", "world"], "kind": "rss", "refresh_minutes": 120, "enabled": true},
+    {"id": "forbes", "name": "Forbes", "url": "https://www.forbes.com/innovation/", "categories": ["economy", "business", "technology"], "kind": "web", "refresh_minutes": 90, "enabled": true}
+  ],
+  "trackers": [
+    {"id": "nil_ojeda", "name": "Nil Ojeda", "query": "Nil Ojeda", "url": "https://news.google.com/rss/search?q=Nil%20Ojeda&hl=es&gl=ES&ceid=ES:es", "kind": "rss", "source_classification": "third_party_reporting", "enabled": true}
+  ]
+}

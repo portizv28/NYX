@@ -1,0 +1,3 @@
+# Interfaz e integración de escritorio Windows.
+pyautogui
+pystray

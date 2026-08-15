@@ -1,0 +1,10 @@
+# Núcleo: conversación, configuración y capacidades básicas.
+openai
+requests
+python-dotenv
+tzdata
+certifi
+openpyxl
+python-pptx
+python-docx
+matplotlib

@@ -14,6 +14,8 @@ from voice.wake_detector import WakeWordDetector
 @dataclass(frozen=True)
 class WakeEvent:
     command: str = ""
+    engine: str = "unknown"
+    confidence: float | None = None
 
 
 class WakeEngine(Protocol):
@@ -35,7 +37,7 @@ class TranscriptionWakeEngine:
         else:
             text = self.recognizer.listen(cancel_event=cancel_event, initial_timeout_seconds=3.0)
         detection = self.detector.detect(text)
-        return WakeEvent(detection.command) if detection else None
+        return WakeEvent(detection.command, engine="transcription-fallback") if detection else None
 
 
 class PorcupineWakeEngine:
@@ -75,7 +77,7 @@ class PorcupineWakeEngine:
                 while not cancel_event.is_set():
                     frame, _overflowed = stream.read(engine.frame_length)
                     if engine.process(frame.reshape(-1).tolist()) >= 0:
-                        return WakeEvent()
+                        return WakeEvent(engine="porcupine", confidence=1.0)
         finally:
             engine.delete()
         return None
@@ -90,6 +92,6 @@ def create_default_wake_engine(recognizer: SpeechRecognizer, detector: WakeWordD
             access_key=access_key,
             keyword_path=keyword_path,
             model_path=os.getenv("NYX_PORCUPINE_MODEL_PATH") or None,
-            sensitivity=float(os.getenv("NYX_WAKE_SENSITIVITY", "0.55")),
+            sensitivity=float(os.getenv("NYX_WAKE_SENSITIVITY", "0.45")),
         )
     return TranscriptionWakeEngine(recognizer, detector)

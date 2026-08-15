@@ -1,0 +1,1 @@
+# El lector RSS/Atom usa la biblioteca estándar. No requiere paquetes extra.
